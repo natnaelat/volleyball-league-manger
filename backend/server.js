@@ -41,6 +41,25 @@ app.get('/api/players', (req, res) => {
   });
 });
 
+app.post('/api/players', (req, res) => {
+  const { name, username, bdate, points } = req.body;
+  const generatedUsername = username || name.toLowerCase().replace(/\s+/g, '');
+  const query = 'INSERT INTO Player (Username, Name, Bdate, Points) VALUES (?, ?, ?, ?)';
+  db.query(query, [generatedUsername, name, bdate || null, points || 0], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ Username: generatedUsername, Name: name, Points: points || 0 });
+  });
+});
+
+app.delete('/api/players/:username', (req, res) => {
+  const { username } = req.params;
+  const query = 'DELETE FROM Player WHERE Username = ?';
+  db.query(query, [username], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: 'Player deleted successfully' });
+  });
+});
+
 app.get('/api/teams', (req, res) => {
   db.query('SELECT * FROM Team', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
