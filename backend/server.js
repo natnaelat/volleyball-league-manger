@@ -60,6 +60,24 @@ app.delete('/api/players/:username', (req, res) => {
   });
 });
 
+app.post('/api/games', (req, res) => {
+  const { timeSlot, team1ID, team2ID, winnerTeamID, loserTeamID } = req.body;
+  const query = 'INSERT INTO Game (Time_Slot, Team1ID, Team2ID, WinnerTeamID, LoserTeamID) VALUES (?, ?, ?, ?, ?)';
+  db.query(query, [timeSlot, team1ID, team2ID, winnerTeamID, loserTeamID], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ Match_ID: result.insertId, Time_Slot: timeSlot, Team1ID: team1ID, Team2ID: team2ID, WinnerTeamID: winnerTeamID, LoserTeamID: loserTeamID });
+  });
+});
+
+app.delete('/api/games/:matchId', (req, res) => {
+  const { matchId } = req.params;
+  const query = 'DELETE FROM Game WHERE Match_ID = ?';
+  db.query(query, [matchId], (err, result) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ message: 'Game deleted successfully' });
+  });
+});
+
 app.get('/api/teams', (req, res) => {
   db.query('SELECT * FROM Team', (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -68,7 +86,16 @@ app.get('/api/teams', (req, res) => {
 });
 
 app.get('/api/games', (req, res) => {
-  db.query('SELECT * FROM Game', (err, results) => {
+  const query = `
+    SELECT g.Match_ID, g.Time_Slot, 
+           t1.TeamName as Team1Name, t2.TeamName as Team2Name,
+           tw.TeamName as WinnerTeamName
+    FROM Game g
+    LEFT JOIN Team t1 ON g.Team1ID = t1.TeamID
+    LEFT JOIN Team t2 ON g.Team2ID = t2.TeamID
+    LEFT JOIN Team tw ON g.WinnerTeamID = tw.TeamID
+  `;
+  db.query(query, (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json(results);
   });
