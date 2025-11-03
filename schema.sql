@@ -1,4 +1,4 @@
-CREATE DATABASE TournamentDB2;
+-- CREATE DATABASE TournamentDB2;
 USE TournamentDB2;
 
 -- PLAYER TABLE
@@ -241,7 +241,9 @@ INSERT IGNORE INTO Location (LMatch_ID, Name, State, StreetName, Zipcode, City) 
 (19, 'Stadium S', 'Indiana', 'Meridian St', '46204', 'Indianapolis'),
 (20, 'Stadium T', 'Kentucky', 'Main St', '40202', 'Louisville');
 
--- Optional verification
+-- Optional 
+USE TournamentDB2;
+SHOW TABLES;
 SELECT * FROM Admin;
 SELECT * FROM Player;
 SELECT * FROM Team;
