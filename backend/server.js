@@ -27,6 +27,31 @@ app.get("/api/test", (req, res) => {
   res.json({ message: "Backend is working!" });
 });
 
+// Login endpoint
+app.post("/api/login", (req, res) => {
+  const { username } = req.body;
+  
+  // Check if admin
+  db.query("SELECT * FROM Admin WHERE Ausername = ?", [username], (err, adminResults) => {
+    if (err) return res.status(500).json({ error: err.message });
+    
+    if (adminResults.length > 0) {
+      return res.json({ userType: 'admin', user: adminResults[0] });
+    }
+    
+    // Check if player
+    db.query("SELECT * FROM Player WHERE Username = ?", [username], (err, playerResults) => {
+      if (err) return res.status(500).json({ error: err.message });
+      
+      if (playerResults.length > 0) {
+        return res.json({ userType: 'player', user: playerResults[0] });
+      }
+      
+      res.status(401).json({ error: 'User not found' });
+    });
+  });
+});
+
 // === PLAYER ENDPOINTS ===
 app.get("/api/players", (req, res) => {
   db.query("SELECT * FROM Player", (err, results) => {

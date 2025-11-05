@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Container, Typography, Box } from "@mui/material";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { DatabaseManager } from "./components/DatabaseManager";
@@ -8,8 +8,32 @@ import { AddGame } from "./components/AddGame";
 import { AddAdmin } from "./components/AddAdmin";
 import { AddLocation } from "./components/AddLocation";
 import { AddScore } from "./components/AddScore";
+import Login from "./Login";
+import PlayerDashboard from "./PlayerDashboard";
 
 function App() {
+  const [user, setUser] = useState(null);
+  const [userType, setUserType] = useState(null);
+
+  const handleLogin = (type, userData) => {
+    setUserType(type);
+    setUser(userData);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setUserType(null);
+  };
+
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  if (userType === 'player') {
+    return <PlayerDashboard user={user} onLogout={handleLogout} />;
+  }
+
+  // Admin view
   return (
     <Router>
       <Routes>
@@ -25,7 +49,7 @@ function App() {
                   gutterBottom
                   align="center"
                 >
-                  🏐 Volleyball League Manager
+                  🏐 Admin Dashboard
                 </Typography>
 
                 {/* DatabaseManager handles all entities */}
