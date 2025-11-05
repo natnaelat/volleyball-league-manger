@@ -1,15 +1,15 @@
 import React, { useState } from "react";
-import { Container, Typography, Box } from "@mui/material";
+import { Container, Typography, Box, Button } from "@mui/material";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { DatabaseManager } from "./components/DatabaseManager";
+import { AdminPage } from "./Pages/Admin/AdminPage";
 import { AddPlayer } from "./components/AddPlayer";
 import { AddTeam } from "./components/AddTeam";
 import { AddGame } from "./components/AddGame";
 import { AddAdmin } from "./components/AddAdmin";
 import { AddLocation } from "./components/AddLocation";
 import { AddScore } from "./components/AddScore";
-import Login from "./Login";
-import PlayerDashboard from "./PlayerDashboard";
+import Login from "./Pages/Login";
+import PlayerDashboard from "./Pages/Player/PlayerDashboard";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -51,9 +51,11 @@ function App() {
                 >
                   🏐 Admin Dashboard
                 </Typography>
-
-                {/* DatabaseManager handles all entities */}
-                <DatabaseManager />
+                <Box sx={{ display: 'flex', justifyContent: 'center'}}>
+                  <Button onClick={handleLogout} variant="outlined">Logout</Button>
+                </Box>
+                {/* AdminPage handles all entities */}
+                <AdminPage onLogout={handleLogout}/>
               </Box>
             </Container>
           }

@@ -52,7 +52,7 @@ function PlayerDashboard({ user, onLogout }) {
                 {games.slice(0, 5).map(game => {
                   const team1Name = teams.find(t => t.TeamID === game.Team1ID)?.TeamName || `Team ${game.Team1ID}`;
                   const team2Name = teams.find(t => t.TeamID === game.Team2ID)?.TeamName || `Team ${game.Team2ID}`;
-                  const winnerName = teams.find(t => t.TeamID === game.WinnerTeamID)?.TeamName || `Team ${game.WinnerTeamID}`;
+                  const winnerName = game.WinnerTeamID ? (teams.find(t => t.TeamID === game.WinnerTeamID)?.TeamName || `Team ${game.WinnerTeamID}`) : "Not Decided Yet";
                   
                   return (
                     <Card key={game.Match_ID} variant="outlined" sx={{ mb: 1 }}>

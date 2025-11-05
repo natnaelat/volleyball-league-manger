@@ -11,7 +11,7 @@ import {
 } from "@mui/icons-material";
 import { Button, Card, CardContent, Typography, Chip } from "@mui/material";
 
-export const DatabaseManager = () => {
+export const AdminPage = ({ onLogout }) => {
   const [players, setPlayers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [games, setGames] = useState([]);
