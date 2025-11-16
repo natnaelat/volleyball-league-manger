@@ -30,26 +30,34 @@ app.get("/api/test", (req, res) => {
 // Login endpoint
 app.post("/api/login", (req, res) => {
   const { username } = req.body;
-  
+
   // Check if admin
-  db.query("SELECT * FROM Admin WHERE Ausername = ?", [username], (err, adminResults) => {
-    if (err) return res.status(500).json({ error: err.message });
-    
-    if (adminResults.length > 0) {
-      return res.json({ userType: 'admin', user: adminResults[0] });
-    }
-    
-    // Check if player
-    db.query("SELECT * FROM Player WHERE Username = ?", [username], (err, playerResults) => {
+  db.query(
+    "SELECT * FROM Admin WHERE Ausername = ?",
+    [username],
+    (err, adminResults) => {
       if (err) return res.status(500).json({ error: err.message });
-      
-      if (playerResults.length > 0) {
-        return res.json({ userType: 'player', user: playerResults[0] });
+
+      if (adminResults.length > 0) {
+        return res.json({ userType: "admin", user: adminResults[0] });
       }
-      
-      res.status(401).json({ error: 'User not found' });
-    });
-  });
+
+      // Check if player
+      db.query(
+        "SELECT * FROM Player WHERE Username = ?",
+        [username],
+        (err, playerResults) => {
+          if (err) return res.status(500).json({ error: err.message });
+
+          if (playerResults.length > 0) {
+            return res.json({ userType: "player", user: playerResults[0] });
+          }
+
+          res.status(401).json({ error: "User not found" });
+        }
+      );
+    }
+  );
 });
 
 // === PLAYER ENDPOINTS ===
@@ -77,6 +85,34 @@ app.post("/api/players", (req, res) => {
       });
     }
   );
+});
+
+// Update player (add this after the POST /api/players endpoint)
+app.put("/api/players/:username", (req, res) => {
+  const { username } = req.params;
+  const { name, bdate, points } = req.body;
+
+  console.log("Updating player:", username);
+  console.log("New data:", { name, bdate, points });
+
+  const query =
+    "UPDATE Player SET Name = ?, Bdate = ?, Points = ? WHERE Username = ?";
+  db.query(query, [name, bdate || null, points, username], (err, result) => {
+    if (err) {
+      console.error("Error updating player:", err);
+      return res.status(500).json({ error: err.message });
+    }
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+    console.log("Player updated successfully!");
+    res.json({
+      Username: username,
+      Name: name,
+      Bdate: bdate,
+      Points: points,
+    });
+  });
 });
 
 app.delete("/api/players/:username", (req, res) => {
@@ -141,6 +177,55 @@ app.post("/api/teams", (req, res) => {
       console.log("Team inserted successfully!");
       res.json({
         TeamID: result.insertId,
+        TeamName,
+        Cusername,
+      });
+    });
+  });
+});
+
+// Update team (add after POST /api/teams)
+app.put("/api/teams/:teamID", (req, res) => {
+  const { teamID } = req.params;
+  const { TeamName, Cusername } = req.body;
+
+  console.log("Updating team:", teamID);
+  console.log("New data:", { TeamName, Cusername });
+
+  // Check if captain exists
+  const checkCaptainQuery = "SELECT * FROM Player WHERE Username = ?";
+  db.query(checkCaptainQuery, [Cusername], (err, captainResults) => {
+    if (err) {
+      console.error("Database error checking captain:", err);
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (captainResults.length === 0) {
+      console.log("Captain not found!");
+      return res.status(400).json({
+        error: "Captain username does not exist",
+        providedUsername: Cusername,
+      });
+    }
+
+    console.log("Captain found! Proceeding to update team...");
+
+    // Update team
+    const updateTeamQuery =
+      "UPDATE Team SET TeamName = ?, Cusername = ? WHERE TeamID = ?";
+    db.query(updateTeamQuery, [TeamName, Cusername, teamID], (err, result) => {
+      if (err) {
+        console.error("Error updating team:", err);
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "Team not found" });
+      }
+
+      console.log("Team updated successfully!");
+      res.json({
+        TeamID: teamID,
         TeamName,
         Cusername,
       });
@@ -220,6 +305,65 @@ app.post("/api/games", (req, res) => {
   });
 });
 
+// Update game
+app.put("/api/games/:matchID", (req, res) => {
+  const { matchID } = req.params;
+  const { Time_Slot, Team1ID, Team2ID, WinnerTeamID, LoserTeamID } = req.body;
+
+  console.log("Updating game:", matchID);
+  console.log("New data:", {
+    Time_Slot,
+    Team1ID,
+    Team2ID,
+    WinnerTeamID,
+    LoserTeamID,
+  });
+
+  // Validation: Check if both teams exist
+  const checkTeamsQuery = "SELECT TeamID FROM Team WHERE TeamID IN (?, ?)";
+  db.query(checkTeamsQuery, [Team1ID, Team2ID], (err, teamResults) => {
+    if (err) {
+      console.error("Database error checking teams:", err);
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (teamResults.length !== 2) {
+      console.log("One or both teams not found!");
+      return res.status(400).json({ error: "One or both teams do not exist" });
+    }
+
+    console.log("Both teams found! Proceeding to update game...");
+
+    // Update game
+    const updateGameQuery =
+      "UPDATE Game SET Time_Slot = ?, Team1ID = ?, Team2ID = ?, WinnerTeamID = ?, LoserTeamID = ? WHERE Match_ID = ?";
+    db.query(
+      updateGameQuery,
+      [Time_Slot, Team1ID, Team2ID, WinnerTeamID, LoserTeamID, matchID],
+      (err, result) => {
+        if (err) {
+          console.error("Error updating game:", err);
+          return res.status(500).json({ error: err.message });
+        }
+
+        if (result.affectedRows === 0) {
+          return res.status(404).json({ error: "Game not found" });
+        }
+
+        console.log("Game updated successfully!");
+        res.json({
+          Match_ID: matchID,
+          Time_Slot,
+          Team1ID,
+          Team2ID,
+          WinnerTeamID,
+          LoserTeamID,
+        });
+      }
+    );
+  });
+});
+
 app.delete("/api/games/:matchID", (req, res) => {
   const { matchID } = req.params;
   const query = "DELETE FROM Game WHERE Match_ID = ?";
@@ -261,6 +405,73 @@ app.post("/api/admins", (req, res) => {
       Name,
     });
   });
+});
+
+// Update admin
+app.put("/api/admins/:ausername", (req, res) => {
+  const { ausername } = req.params;
+  const { Name, Ausername } = req.body; // Now accepts both Name and new Username
+
+  console.log("Updating admin:", ausername);
+  console.log("New data:", { Name, Ausername });
+
+  // If username is being changed, check if new username already exists
+  if (Ausername && Ausername !== ausername) {
+    const checkUsernameQuery = "SELECT * FROM Admin WHERE Ausername = ?";
+    db.query(checkUsernameQuery, [Ausername], (err, results) => {
+      if (err) {
+        console.error("Error checking username:", err);
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (results.length > 0) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+
+      // Update both name and username
+      const updateAdminQuery =
+        "UPDATE Admin SET Name = ?, Ausername = ? WHERE Ausername = ?";
+      db.query(
+        updateAdminQuery,
+        [Name, Ausername, ausername],
+        (err, result) => {
+          if (err) {
+            console.error("Error updating admin:", err);
+            return res.status(500).json({ error: err.message });
+          }
+
+          if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Admin not found" });
+          }
+
+          console.log("Admin updated successfully!");
+          res.json({
+            Ausername: Ausername,
+            Name,
+          });
+        }
+      );
+    });
+  } else {
+    // Only updating name
+    const updateAdminQuery = "UPDATE Admin SET Name = ? WHERE Ausername = ?";
+    db.query(updateAdminQuery, [Name, ausername], (err, result) => {
+      if (err) {
+        console.error("Error updating admin:", err);
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "Admin not found" });
+      }
+
+      console.log("Admin updated successfully!");
+      res.json({
+        Ausername: ausername,
+        Name,
+      });
+    });
+  }
 });
 
 app.delete("/api/admins/:ausername", (req, res) => {
@@ -344,6 +555,43 @@ app.post("/api/locations", (req, res) => {
       );
     });
   });
+});
+
+// Update location
+app.put("/api/locations/:lMatchID", (req, res) => {
+  const { lMatchID } = req.params;
+  const { Name, State, StreetName, Zipcode, City } = req.body;
+
+  console.log("Updating location:", lMatchID);
+  console.log("New data:", { Name, State, StreetName, Zipcode, City });
+
+  // Update location
+  const updateLocationQuery =
+    "UPDATE Location SET Name = ?, State = ?, StreetName = ?, Zipcode = ?, City = ? WHERE LMatch_ID = ?";
+  db.query(
+    updateLocationQuery,
+    [Name, State, StreetName, Zipcode, City, lMatchID],
+    (err, result) => {
+      if (err) {
+        console.error("Error updating location:", err);
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "Location not found" });
+      }
+
+      console.log("Location updated successfully!");
+      res.json({
+        LMatch_ID: lMatchID,
+        Name,
+        State,
+        StreetName,
+        Zipcode,
+        City,
+      });
+    }
+  );
 });
 
 app.delete("/api/locations/:lMatchID", (req, res) => {
@@ -436,6 +684,70 @@ app.post("/api/scores", (req, res) => {
       );
     });
   });
+});
+
+app.put("/api/scores/:sMatchID/:setID", (req, res) => {
+  const { sMatchID, setID } = req.params;
+  const { Game_Point, Losing_TeamID, Winning_TeamID } = req.body;
+
+  console.log("Updating score:", sMatchID, setID);
+  console.log("New data:", { Game_Point, Losing_TeamID, Winning_TeamID });
+
+  // Validate that winning and losing teams are different
+  if (Losing_TeamID === Winning_TeamID) {
+    return res
+      .status(400)
+      .json({ error: "Winning and losing teams must be different" });
+  }
+
+  // Check if both teams exist
+  const checkTeamsQuery = "SELECT TeamID FROM Team WHERE TeamID IN (?, ?)";
+  db.query(
+    checkTeamsQuery,
+    [Losing_TeamID, Winning_TeamID],
+    (err, teamResults) => {
+      if (err) {
+        console.error("Database error checking teams:", err);
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (teamResults.length !== 2) {
+        console.log("One or both teams not found!");
+        return res
+          .status(400)
+          .json({ error: "One or both teams do not exist" });
+      }
+
+      console.log("Teams validated! Proceeding to update score...");
+
+      // Update score
+      const updateScoreQuery =
+        "UPDATE Score SET Game_Point = ?, Losing_TeamID = ?, Winning_TeamID = ? WHERE S_MatchID = ? AND SetID = ?";
+      db.query(
+        updateScoreQuery,
+        [Game_Point, Losing_TeamID, Winning_TeamID, sMatchID, setID],
+        (err, result) => {
+          if (err) {
+            console.error("Error updating score:", err);
+            return res.status(500).json({ error: err.message });
+          }
+
+          if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Score not found" });
+          }
+
+          console.log("Score updated successfully!");
+          res.json({
+            S_MatchID: sMatchID,
+            SetID: setID,
+            Game_Point,
+            Losing_TeamID,
+            Winning_TeamID,
+          });
+        }
+      );
+    }
+  );
 });
 
 app.delete("/api/scores/:sMatchID/:setID", (req, res) => {

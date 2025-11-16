@@ -29,7 +29,7 @@ function App() {
     return <Login onLogin={handleLogin} />;
   }
 
-  if (userType === 'player') {
+  if (userType === "player") {
     return <PlayerDashboard user={user} onLogout={handleLogout} />;
   }
 
@@ -51,11 +51,16 @@ function App() {
                 >
                   🏐 Admin Dashboard
                 </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'center'}}>
-                  <Button onClick={handleLogout} variant="outlined">Logout</Button>
+                <Box sx={{ display: "flex", justifyContent: "center" }}>
+                  <Button onClick={handleLogout} variant="outlined">
+                    Logout
+                  </Button>
                 </Box>
                 {/* AdminPage handles all entities */}
-                <AdminPage onLogout={handleLogout}/>
+                <AdminPage
+                  onLogout={handleLogout}
+                  currentUser={user.Ausername}
+                />
               </Box>
             </Container>
           }
@@ -84,5 +89,3 @@ function App() {
 }
 
 export default App;
-
-
