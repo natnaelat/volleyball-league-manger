@@ -9,7 +9,7 @@ app.use(express.json());
 const db = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "", // Remove password or update with correct one
+  password: "Bearnww360!", // Remove password or update with correct one
   database: "TournamentDB2",
 });
 
@@ -158,6 +158,69 @@ app.post("/api/signup", (req, res) => {
   );
 });
 
+app.put("/api/change-password", (req, res) => {
+  const { username, currentPassword, newPassword, userType } = req.body;
+
+  // Validation
+  if (!username || !currentPassword || !newPassword || !userType) {
+    return res.status(400).json({ error: "All fields are required" });
+  }
+
+  if (newPassword.length < 6) {
+    return res
+      .status(400)
+      .json({ error: "New password must be at least 6 characters" });
+  }
+
+  if (currentPassword === newPassword) {
+    return res
+      .status(400)
+      .json({ error: "New password must be different from current password" });
+  }
+
+  // Determine which table to use based on userType
+  const tableName = userType === "admin" ? "Admin" : "Player";
+  const usernameField = userType === "admin" ? "Ausername" : "Username";
+
+  // First, verify the current password
+  const verifyQuery = `SELECT * FROM ${tableName} WHERE ${usernameField} = ?`;
+
+  db.query(verifyQuery, [username], (err, results) => {
+    if (err) {
+      console.error("Database error:", err);
+      return res.status(500).json({ error: err.message });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const user = results[0];
+
+    // Check if current password matches
+    if (user.Password !== currentPassword) {
+      return res.status(401).json({ error: "Current password is incorrect" });
+    }
+
+    // Update to new password
+    const updateQuery = `UPDATE ${tableName} SET Password = ? WHERE ${usernameField} = ?`;
+
+    db.query(updateQuery, [newPassword, username], (err, result) => {
+      if (err) {
+        console.error("Error updating password:", err);
+        return res.status(500).json({ error: "Failed to update password" });
+      }
+
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      console.log(`Password changed successfully for ${userType}:`, username);
+      res.json({ message: "Password changed successfully" });
+    });
+  });
+});
+
 // === PLAYER ENDPOINTS ===
 app.get("/api/players", (req, res) => {
   db.query("SELECT * FROM Player", (err, results) => {
@@ -167,13 +230,15 @@ app.get("/api/players", (req, res) => {
 });
 
 app.post("/api/players", (req, res) => {
-  const { name, username, bdate, points } = req.body;
+  const { name, username, bdate, points, password } = req.body;
   const generatedUsername = username || name.toLowerCase().replace(/\s+/g, "");
+  const defaultPassword = password || "player123"; // Set default password
+
   const query =
-    "INSERT INTO Player (Username, Name, Bdate, Points) VALUES (?, ?, ?, ?)";
+    "INSERT INTO Player (Username, Name, Bdate, Points, Password) VALUES (?, ?, ?, ?, ?)";
   db.query(
     query,
-    [generatedUsername, name, bdate || null, points || 0],
+    [generatedUsername, name, bdate || null, points || 0, defaultPassword],
     (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
       res.json({
@@ -483,26 +548,32 @@ app.get("/api/admins", (req, res) => {
 });
 
 app.post("/api/admins", (req, res) => {
-  const { Ausername, Name } = req.body;
+  const { Ausername, Name, Password } = req.body;
+  const defaultPassword = Password || "admin123"; // Set default password
 
   console.log("Received admin creation request:");
   console.log("Ausername:", Ausername);
   console.log("Name:", Name);
 
-  // Insert new admin
-  const insertAdminQuery = "INSERT INTO Admin (Ausername, Name) VALUES (?, ?)";
-  db.query(insertAdminQuery, [Ausername, Name], (err, result) => {
-    if (err) {
-      console.error("Error inserting admin:", err);
-      return res.status(500).json({ error: err.message });
-    }
+  // Insert new admin with password
+  const insertAdminQuery =
+    "INSERT INTO Admin (Ausername, Name, Password) VALUES (?, ?, ?)";
+  db.query(
+    insertAdminQuery,
+    [Ausername, Name, defaultPassword],
+    (err, result) => {
+      if (err) {
+        console.error("Error inserting admin:", err);
+        return res.status(500).json({ error: err.message });
+      }
 
-    console.log("Admin inserted successfully!");
-    res.json({
-      Ausername,
-      Name,
-    });
-  });
+      console.log("Admin inserted successfully!");
+      res.json({
+        Ausername,
+        Name,
+      });
+    }
+  );
 });
 
 // Update admin

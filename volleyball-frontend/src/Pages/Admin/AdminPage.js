@@ -8,6 +8,7 @@ import {
   AdminPanelSettings,
   LocationOn,
   Scoreboard,
+  Lock,
 } from "@mui/icons-material";
 import {
   Button,
@@ -18,6 +19,10 @@ import {
   Box,
   TextField,
   MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 
 export const AdminPage = ({ onLogout, currentUser }) => {
@@ -39,7 +44,92 @@ export const AdminPage = ({ onLogout, currentUser }) => {
   const [editLocationForm, setEditLocationForm] = useState({});
   const [editingScore, setEditingScore] = useState(null);
   const [editScoreForm, setEditScoreForm] = useState({});
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
   const navigate = useNavigate();
+
+  const handleOpenPasswordDialog = () => {
+    setPasswordDialogOpen(true);
+    setPasswordError("");
+    setPasswordSuccess("");
+    setPasswordForm({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+  };
+
+  const handleClosePasswordDialog = () => {
+    setPasswordDialogOpen(false);
+    setPasswordError("");
+    setPasswordSuccess("");
+  };
+
+  const handlePasswordChange = (field) => (e) => {
+    setPasswordForm({ ...passwordForm, [field]: e.target.value });
+    setPasswordError("");
+  };
+
+  const handleSubmitPasswordChange = async () => {
+    // Validation
+    if (
+      !passwordForm.currentPassword ||
+      !passwordForm.newPassword ||
+      !passwordForm.confirmPassword
+    ) {
+      setPasswordError("All fields are required");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError("New passwords do not match");
+      return;
+    }
+
+    if (passwordForm.currentPassword === passwordForm.newPassword) {
+      setPasswordError("New password must be different from current password");
+      return;
+    }
+
+    try {
+      const response = await axios.put(
+        "http://localhost:3001/api/change-password",
+        {
+          username: currentUser,
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+          userType: "admin",
+        }
+      );
+
+      if (response.data.error) {
+        setPasswordError(response.data.error);
+      } else {
+        setPasswordSuccess("Password changed successfully!");
+        setTimeout(() => {
+          handleClosePasswordDialog();
+        }, 2000);
+      }
+    } catch (err) {
+      console.error("Password change error:", err);
+      if (err.response?.data?.error) {
+        setPasswordError(err.response.data.error);
+      } else {
+        setPasswordError("Failed to change password - server error");
+      }
+    }
+  };
 
   const fetchPlayers = async () => {
     try {
@@ -860,13 +950,32 @@ export const AdminPage = ({ onLogout, currentUser }) => {
       {/* Admins Section */}
       <Card sx={{ maxWidth: 600, margin: "20px auto" }}>
         <CardContent>
-          <Typography variant="h5" gutterBottom>
-            <AdminPanelSettings sx={{ mr: 1, verticalAlign: "middle" }} />
-            Admins ({admins.length})
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
+            <Typography variant="h5">
+              <AdminPanelSettings sx={{ mr: 1, verticalAlign: "middle" }} />
+              Admins ({admins.length})
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<Lock />}
+              onClick={handleOpenPasswordDialog}
+              size="small"
+            >
+              Change My Password
+            </Button>
+          </Box>
+
           <Button variant="contained" onClick={handleAddAdmin} sx={{ mb: 2 }}>
             Add Admin
           </Button>
+
           {admins.map((admin) => (
             <Card key={admin.Ausername} variant="outlined" sx={{ mb: 1 }}>
               <CardContent sx={{ py: 1 }}>
@@ -1282,6 +1391,77 @@ export const AdminPage = ({ onLogout, currentUser }) => {
           })}
         </CardContent>
       </Card>
+      {/* Password Change Dialog */}
+      <Dialog
+        open={passwordDialogOpen}
+        onClose={handleClosePasswordDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Lock sx={{ mr: 1, verticalAlign: "middle" }} />
+          Change Admin Password
+        </DialogTitle>
+        <DialogContent>
+          {passwordError && (
+            <Typography
+              color="error"
+              align="center"
+              sx={{ mb: 2, p: 1, bgcolor: "#ffebee", borderRadius: 1 }}
+            >
+              {passwordError}
+            </Typography>
+          )}
+
+          {passwordSuccess && (
+            <Typography
+              color="success.main"
+              align="center"
+              sx={{ mb: 2, p: 1, bgcolor: "#e8f5e9", borderRadius: 1 }}
+            >
+              {passwordSuccess}
+            </Typography>
+          )}
+
+          <TextField
+            fullWidth
+            label="Current Password"
+            type="password"
+            value={passwordForm.currentPassword}
+            onChange={handlePasswordChange("currentPassword")}
+            sx={{ mb: 2, mt: 1 }}
+          />
+
+          <TextField
+            fullWidth
+            label="New Password"
+            type="password"
+            value={passwordForm.newPassword}
+            onChange={handlePasswordChange("newPassword")}
+            sx={{ mb: 2 }}
+            helperText="At least 6 characters"
+          />
+
+          <TextField
+            fullWidth
+            label="Confirm New Password"
+            type="password"
+            value={passwordForm.confirmPassword}
+            onChange={handlePasswordChange("confirmPassword")}
+            sx={{ mb: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClosePasswordDialog}>Cancel</Button>
+          <Button
+            onClick={handleSubmitPasswordChange}
+            variant="contained"
+            disabled={passwordSuccess !== ""}
+          >
+            Change Password
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };
