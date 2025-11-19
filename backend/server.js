@@ -29,7 +29,14 @@ app.get("/api/test", (req, res) => {
 
 // Login endpoint
 app.post("/api/login", (req, res) => {
-  const { username } = req.body;
+  const { username, password } = req.body;
+
+  // Validate input
+  if (!username || !password) {
+    return res
+      .status(400)
+      .json({ error: "Username and password are required" });
+  }
 
   // Check if admin
   db.query(
@@ -39,7 +46,14 @@ app.post("/api/login", (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
 
       if (adminResults.length > 0) {
-        return res.json({ userType: "admin", user: adminResults[0] });
+        // Admin found - check password
+        if (adminResults[0].Password === password) {
+          // Password correct
+          return res.json({ userType: "admin", user: adminResults[0] });
+        } else {
+          // Password incorrect
+          return res.status(401).json({ error: "Invalid password" });
+        }
       }
 
       // Check if player
@@ -50,10 +64,94 @@ app.post("/api/login", (req, res) => {
           if (err) return res.status(500).json({ error: err.message });
 
           if (playerResults.length > 0) {
-            return res.json({ userType: "player", user: playerResults[0] });
+            // Player found - check password
+            if (playerResults[0].Password === password) {
+              // Password correct
+              return res.json({ userType: "player", user: playerResults[0] });
+            } else {
+              // Password incorrect
+              return res.status(401).json({ error: "Invalid password" });
+            }
           }
 
+          // User not found
           res.status(401).json({ error: "User not found" });
+        }
+      );
+    }
+  );
+});
+
+// Add this signup endpoint right after your login endpoint in server.js
+
+// Signup endpoint (for players only)
+app.post("/api/signup", (req, res) => {
+  const { username, name, password, bdate, points } = req.body;
+
+  // Validate input
+  if (!username || !name || !password) {
+    return res
+      .status(400)
+      .json({ error: "Username, name, and password are required" });
+  }
+
+  if (password.length < 6) {
+    return res
+      .status(400)
+      .json({ error: "Password must be at least 6 characters" });
+  }
+
+  // Check if username already exists in Player table
+  db.query(
+    "SELECT * FROM Player WHERE Username = ?",
+    [username],
+    (err, playerResults) => {
+      if (err) {
+        console.error("Database error:", err);
+        return res.status(500).json({ error: err.message });
+      }
+
+      if (playerResults.length > 0) {
+        return res.status(400).json({ error: "Username already exists" });
+      }
+
+      // Check if username exists in Admin table (can't use admin usernames)
+      db.query(
+        "SELECT * FROM Admin WHERE Ausername = ?",
+        [username],
+        (err, adminResults) => {
+          if (err) {
+            console.error("Database error:", err);
+            return res.status(500).json({ error: err.message });
+          }
+
+          if (adminResults.length > 0) {
+            return res.status(400).json({ error: "Username already exists" });
+          }
+
+          // Username is available - create new player
+          const insertQuery =
+            "INSERT INTO Player (Username, Name, Bdate, Points, Password) VALUES (?, ?, ?, ?, ?)";
+
+          db.query(
+            insertQuery,
+            [username, name, bdate || null, points || 0, password],
+            (err, result) => {
+              if (err) {
+                console.error("Error creating player:", err);
+                return res
+                  .status(500)
+                  .json({ error: "Failed to create account" });
+              }
+
+              console.log("Player account created successfully:", username);
+              res.json({
+                message: "Account created successfully",
+                username: username,
+                name: name,
+              });
+            }
+          );
         }
       );
     }

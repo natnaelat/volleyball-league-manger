@@ -1,18 +1,20 @@
 -- CREATE DATABASE TournamentDB2;
 USE TournamentDB2;
 
--- PLAYER TABLE
+-- PLAYER TABLE (with Password)
 CREATE TABLE Player (
     Username VARCHAR(50) PRIMARY KEY,
     Name VARCHAR(100) NOT NULL,
     Bdate DATE,
-    Points INT DEFAULT 0
+    Points INT DEFAULT 0,
+    Password VARCHAR(255) NOT NULL
 );
 
--- ADMIN TABLE
+-- ADMIN TABLE (with Password)
 CREATE TABLE Admin (
     Ausername VARCHAR(50) PRIMARY KEY,
-    Name VARCHAR(100) NOT NULL
+    Name VARCHAR(100) NOT NULL,
+    Password VARCHAR(255) NOT NULL
 );
 
 -- TEAM TABLE
@@ -75,51 +77,51 @@ CREATE TABLE Location (
 SHOW TABLES;
 DESCRIBE Player;
 
--- Sample Admins
-INSERT IGNORE INTO Admin (Ausername, Name) VALUES
-('admin1', 'Alice Johnson'),
-('admin2', 'Bob Smith'),
-('admin3', 'Carol Thompson'),
-('admin4', 'Daniel Lee'),
-('admin5', 'Evelyn Parker'),
-('admin6', 'Franklin Ortiz'),
-('admin7', 'Grace Chen'),
-('admin8', 'Henry Adams'),
-('admin9', 'Isabella Martinez'),
-('admin10', 'Jack Robinson'),
-('admin11', 'Karen White'),
-('admin12', 'Liam Scott'),
-('admin13', 'Mia Turner'),
-('admin14', 'Nathan Harris'),
-('admin15', 'Olivia King'),
-('admin16', 'Pauline Young'),
-('admin17', 'Quentin Lewis'),
-('admin18', 'Rachel Hall'),
-('admin19', 'Samuel Allen'),
-('admin20', 'Tina Baker');
+-- Sample Admins (with Password column)
+INSERT IGNORE INTO Admin (Ausername, Name, Password) VALUES
+('admin1', 'Alice Johnson', 'admin123'),
+('admin2', 'Bob Smith', 'admin123'),
+('admin3', 'Carol Thompson', 'admin123'),
+('admin4', 'Daniel Lee', 'admin123'),
+('admin5', 'Evelyn Parker', 'admin123'),
+('admin6', 'Franklin Ortiz', 'admin123'),
+('admin7', 'Grace Chen', 'admin123'),
+('admin8', 'Henry Adams', 'admin123'),
+('admin9', 'Isabella Martinez', 'admin123'),
+('admin10', 'Jack Robinson', 'admin123'),
+('admin11', 'Karen White', 'admin123'),
+('admin12', 'Liam Scott', 'admin123'),
+('admin13', 'Mia Turner', 'admin123'),
+('admin14', 'Nathan Harris', 'admin123'),
+('admin15', 'Olivia King', 'admin123'),
+('admin16', 'Pauline Young', 'admin123'),
+('admin17', 'Quentin Lewis', 'admin123'),
+('admin18', 'Rachel Hall', 'admin123'),
+('admin19', 'Samuel Allen', 'admin123'),
+('admin20', 'Tina Baker', 'admin123');
 
--- Sample Players
-INSERT IGNORE INTO Player (Username, Name, Bdate, Points) VALUES
-('player1', 'John Doe', '2002-05-12', 10),
-('player2', 'Jane Roe', '2002-11-23', 15),
-('player3', 'Mike Lee', '2003-03-15', 12),
-('player4', 'Sara Kim', '2003-07-30', 18),
-('player5', 'Tom Brown', '2002-02-20', 9),
-('player6', 'Emily Davis', '2004-09-10', 14),
-('player7', 'David Wilson', '2002-12-05', 20),
-('player8', 'Linda Green', '2005-06-18', 16),
-('player9', 'Alex Morgan', '2003-04-08', 11),
-('player10', 'Bella Clark', '2004-07-14', 13),
-('player11', 'Chris Evans', '2005-11-21', 17),
-('player12', 'Diana Ross', '2004-05-30', 19),
-('player13', 'Ethan Hunt', '2002-03-12', 12),
-('player14', 'Fiona Gallagher', '2005-09-25', 14),
-('player15', 'George Martin', '2003-01-17', 16),
-('player16', 'Hannah Scott', '2004-12-05', 15),
-('player17', 'Ian Somerhalder', '2002-08-23', 18),
-('player18', 'Julia Roberts', '2005-06-11', 20),
-('player19', 'Kevin Hart', '2003-02-28', 13),
-('player20', 'Laura Linney', '2004-10-19', 17);
+-- Sample Players (with Password column)
+INSERT IGNORE INTO Player (Username, Name, Bdate, Points, Password) VALUES
+('player1', 'John Doe', '2002-05-12', 10, 'player123'),
+('player2', 'Jane Roe', '2002-11-23', 15, 'player123'),
+('player3', 'Mike Lee', '2003-03-15', 12, 'player123'),
+('player4', 'Sara Kim', '2003-07-30', 18, 'player123'),
+('player5', 'Tom Brown', '2002-02-20', 9, 'player123'),
+('player6', 'Emily Davis', '2004-09-10', 14, 'player123'),
+('player7', 'David Wilson', '2002-12-05', 20, 'player123'),
+('player8', 'Linda Green', '2005-06-18', 16, 'player123'),
+('player9', 'Alex Morgan', '2003-04-08', 11, 'player123'),
+('player10', 'Bella Clark', '2004-07-14', 13, 'player123'),
+('player11', 'Chris Evans', '2005-11-21', 17, 'player123'),
+('player12', 'Diana Ross', '2004-05-30', 19, 'player123'),
+('player13', 'Ethan Hunt', '2002-03-12', 12, 'player123'),
+('player14', 'Fiona Gallagher', '2005-09-25', 14, 'player123'),
+('player15', 'George Martin', '2003-01-17', 16, 'player123'),
+('player16', 'Hannah Scott', '2004-12-05', 15, 'player123'),
+('player17', 'Ian Somerhalder', '2002-08-23', 18, 'player123'),
+('player18', 'Julia Roberts', '2005-06-11', 20, 'player123'),
+('player19', 'Kevin Hart', '2003-02-28', 13, 'player123'),
+('player20', 'Laura Linney', '2004-10-19', 17, 'player123');
 
 -- Sample Teams (TeamID increments automatically)
 INSERT IGNORE INTO Team (TeamID, TeamName, Cusername) VALUES
