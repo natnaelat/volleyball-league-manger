@@ -295,6 +295,56 @@ app.get("/api/teams", (req, res) => {
   });
 });
 
+// Get stats for a specific team
+app.get("/api/teams/:teamId/stats", (req, res) => {
+  const { teamId } = req.params;
+
+  const sql = `
+    SELECT
+      t.TeamID,
+      t.TeamName,
+      COUNT(DISTINCT g.Match_ID) AS GamesPlayed,
+      COUNT(DISTINCT CASE WHEN g.WinnerTeamID = t.TeamID THEN g.Match_ID END) AS Wins,
+      COUNT(DISTINCT CASE WHEN g.LoserTeamID = t.TeamID THEN g.Match_ID END) AS Losses,
+      COALESCE(SUM(
+        CASE
+          WHEN s.Winning_TeamID = t.TeamID THEN s.Game_Point
+          WHEN s.Losing_TeamID  = t.TeamID THEN s.Game_Point
+          ELSE 0
+        END
+      ), 0) AS TotalPoints,
+      CASE
+        WHEN COUNT(DISTINCT g.Match_ID) = 0 THEN 0
+        ELSE ROUND(
+          COALESCE(SUM(
+            CASE
+              WHEN s.Winning_TeamID = t.TeamID THEN s.Game_Point
+              WHEN s.Losing_TeamID  = t.TeamID THEN s.Game_Point
+              ELSE 0
+            END
+          ), 0) / COUNT(DISTINCT g.Match_ID), 2)
+      END AS AvgPointsPerGame
+    FROM Team t
+    LEFT JOIN Game g
+      ON t.TeamID IN (g.Team1ID, g.Team2ID)
+    LEFT JOIN Score s
+      ON s.S_MatchID = g.Match_ID
+    WHERE t.TeamID = ?
+    GROUP BY t.TeamID, t.TeamName;
+`;
+
+  db.query(sql, [teamId], (err, rows) => {
+    if (err) {
+      console.error("Error fetching team stats:", err);
+      return res.status(500).json({ error: "Failed to fetch team stats" });
+    }
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Team not found" });
+    }
+    res.json(rows[0]);
+  });
+});
+
 app.post("/api/teams", (req, res) => {
   const { TeamName, Cusername } = req.body;
 

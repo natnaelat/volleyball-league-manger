@@ -18,6 +18,12 @@ import { Person, SportsVolleyball, Lock } from "@mui/icons-material";
 function PlayerDashboard({ user, onLogout }) {
   const [games, setGames] = useState([]);
   const [teams, setTeams] = useState([]);
+
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [teamStats, setTeamStats] = useState(null);
+  const [loadingTeamStats, setLoadingTeamStats] = useState(false);
+  const [teamStatsError, setTeamStatsError] = useState("");
+
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
@@ -35,9 +41,47 @@ function PlayerDashboard({ user, onLogout }) {
 
     fetch("http://localhost:3001/api/teams")
       .then((res) => res.json())
-      .then((data) => setTeams(data))
+      .then((data) => {
+        setTeams(data);
+        if (data.length > 0) {
+          setSelectedTeamId(data[0].TeamID.toString());
+        }
+      })
       .catch((err) => console.error("Error fetching teams:", err));
   }, []);
+
+  useEffect(() => {
+    if (!selectedTeamId) return;
+
+    setLoadingTeamStats(true);
+    setTeamStatsError("");
+    setTeamStats(null);
+
+    fetch(`http://localhost:3001/api/teams/${selectedTeamId}/stats`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch team stats");
+        return res.json();
+      })
+      .then((data) => {
+        setTeamStats(data);
+      })
+      .catch((err) => {
+        console.error("Error fetching team stats:", err);
+        setTeamStatsError("Failed to load team stats");
+      })
+      .finally(() => {
+        setLoadingTeamStats(false);
+      });
+  }, [selectedTeamId]);
+
+  const recentGames = games.slice(0, 5);
+
+  const futureGames = [...games]
+    .filter((g) => new Date(g.Time_Slot) > new Date())
+    .sort(
+      (a, b) => new Date(a.Time_Slot).getTime() - new Date(b.Time_Slot).getTime()
+    )
+    .slice(0, 5);
 
   const handleOpenPasswordDialog = () => {
     setPasswordDialogOpen(true);
@@ -62,7 +106,6 @@ function PlayerDashboard({ user, onLogout }) {
   };
 
   const handleSubmitPasswordChange = () => {
-    // Validation
     if (
       !passwordForm.currentPassword ||
       !passwordForm.newPassword ||
@@ -87,7 +130,6 @@ function PlayerDashboard({ user, onLogout }) {
       return;
     }
 
-    // Send password change request
     fetch("http://localhost:3001/api/change-password", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -115,6 +157,9 @@ function PlayerDashboard({ user, onLogout }) {
       });
   };
 
+  const getTeamName = (teamId) =>
+    teams.find((t) => t.TeamID === teamId)?.TeamName || `Team ${teamId}`;
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
@@ -133,7 +178,7 @@ function PlayerDashboard({ user, onLogout }) {
         </Box>
 
         <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={3}>
             <Card>
               <CardContent>
                 <Typography variant="h5" gutterBottom>
@@ -157,23 +202,51 @@ function PlayerDashboard({ user, onLogout }) {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={3}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5" gutterBottom>
+                  Upcoming Games
+                </Typography>
+
+                {futureGames.length === 0 && (
+                  <Typography variant="body2">
+                    No upcoming games scheduled.
+                  </Typography>
+                )}
+
+                {futureGames.map((game) => {
+                  const team1Name = getTeamName(game.Team1ID);
+                  const team2Name = getTeamName(game.Team2ID);
+
+                  return (
+                    <Card key={game.Match_ID} variant="outlined" sx={{ mb: 1 }}>
+                      <CardContent sx={{ py: 1 }}>
+                        <Typography variant="body2">
+                          {team1Name} vs {team2Name}
+                          <br />
+                          Time: {new Date(game.Time_Slot).toLocaleString()}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={3}>
             <Card>
               <CardContent>
                 <Typography variant="h5" gutterBottom>
                   <SportsVolleyball sx={{ mr: 1, verticalAlign: "middle" }} />
                   Recent Games
                 </Typography>
-                {games.slice(0, 5).map((game) => {
-                  const team1Name =
-                    teams.find((t) => t.TeamID === game.Team1ID)?.TeamName ||
-                    `Team ${game.Team1ID}`;
-                  const team2Name =
-                    teams.find((t) => t.TeamID === game.Team2ID)?.TeamName ||
-                    `Team ${game.Team2ID}`;
+                {recentGames.map((game) => {
+                  const team1Name = getTeamName(game.Team1ID);
+                  const team2Name = getTeamName(game.Team2ID);
                   const winnerName = game.WinnerTeamID
-                    ? teams.find((t) => t.TeamID === game.WinnerTeamID)
-                        ?.TeamName || `Team ${game.WinnerTeamID}`
+                    ? getTeamName(game.WinnerTeamID)
                     : "Not Decided Yet";
 
                   return (
@@ -190,6 +263,62 @@ function PlayerDashboard({ user, onLogout }) {
                     </Card>
                   );
                 })}
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} md={3}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5" gutterBottom>
+                  Team Stats
+                </Typography>
+
+                <TextField
+                  select
+                  label="Select Team"
+                  value={selectedTeamId}
+                  onChange={(e) => setSelectedTeamId(e.target.value)}
+                  fullWidth
+                  SelectProps={{ native: true }}
+                  sx={{ mb: 2 }}
+                >
+                  {teams.map((team) => (
+                    <option key={team.TeamID} value={team.TeamID}>
+                      {team.TeamName}
+                    </option>
+                  ))}
+                </TextField>
+
+                {loadingTeamStats && (
+                  <Typography variant="body2">Loading team stats...</Typography>
+                )}
+
+                {teamStatsError && (
+                  <Typography variant="body2" color="error">
+                    {teamStatsError}
+                  </Typography>
+                )}
+
+                {teamStats && !loadingTeamStats && !teamStatsError && (
+                  <Box>
+                    <Typography>Games Played: {teamStats.GamesPlayed}</Typography>
+                    <Typography>Wins: {teamStats.Wins}</Typography>
+                    <Typography>Losses: {teamStats.Losses}</Typography>
+                    <Typography>
+                      Win Rate:{" "}
+                      {teamStats.GamesPlayed === 0
+                        ? "0%"
+                        : `${Math.round(
+                            (teamStats.Wins / teamStats.GamesPlayed) * 100
+                          )}%`}
+                    </Typography>
+                    <Typography>Total Points: {teamStats.TotalPoints}</Typography>
+                    <Typography>
+                      Avg Points/Game: {teamStats.AvgPointsPerGame}
+                    </Typography>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Grid>
