@@ -9,27 +9,61 @@ import { AddAdmin } from "./components/AddAdmin";
 import { AddLocation } from "./components/AddLocation";
 import { AddScore } from "./components/AddScore";
 import Login from "./Pages/Login";
+import Signup from "./Pages/Signup"; // Import the new Signup component
 import PlayerDashboard from "./Pages/Player/PlayerDashboard";
 
 function App() {
   const [user, setUser] = useState(null);
   const [userType, setUserType] = useState(null);
+  const [showSignup, setShowSignup] = useState(false);
 
   const handleLogin = (type, userData) => {
     setUserType(type);
     setUser(userData);
+    setShowSignup(false);
   };
 
   const handleLogout = () => {
     setUser(null);
     setUserType(null);
+    setShowSignup(false);
   };
 
-  if (!user) {
-    return <Login onLogin={handleLogin} />;
+  const handleNavigateToSignup = () => {
+    setShowSignup(true);
+  };
+
+  const handleBackToLogin = () => {
+    setShowSignup(false);
+  };
+
+  const handleSignupSuccess = () => {
+    setShowSignup(false);
+    // User will need to login with their new credentials
+  };
+
+  // Show signup page
+  if (!user && showSignup) {
+    return (
+      <Signup
+        onSignupSuccess={handleSignupSuccess}
+        onBackToLogin={handleBackToLogin}
+      />
+    );
   }
 
-  if (userType === 'player') {
+  // Show login page
+  if (!user) {
+    return (
+      <Login
+        onLogin={handleLogin}
+        onNavigateToSignup={handleNavigateToSignup}
+      />
+    );
+  }
+
+  // Player dashboard
+  if (userType === "player") {
     return <PlayerDashboard user={user} onLogout={handleLogout} />;
   }
 
@@ -51,11 +85,16 @@ function App() {
                 >
                   🏐 Admin Dashboard
                 </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'center'}}>
-                  <Button onClick={handleLogout} variant="outlined">Logout</Button>
+                <Box sx={{ display: "flex", justifyContent: "center" }}>
+                  <Button onClick={handleLogout} variant="outlined">
+                    Logout
+                  </Button>
                 </Box>
                 {/* AdminPage handles all entities */}
-                <AdminPage onLogout={handleLogout}/>
+                <AdminPage
+                  onLogout={handleLogout}
+                  currentUser={user.Ausername}
+                />
               </Box>
             </Container>
           }
@@ -84,5 +123,3 @@ function App() {
 }
 
 export default App;
-
-
