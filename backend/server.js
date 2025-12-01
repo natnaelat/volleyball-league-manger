@@ -287,6 +287,41 @@ app.delete("/api/players/:username", (req, res) => {
   });
 });
 
+// Get the Player's rank and their average overall points
+app.get("/api/players/:username/simple-stats", (req, res) => {
+  const { username } = req.params;
+
+  const sql = `
+    SELECT
+      p.Points,
+      stats.AvgPoints,
+      (
+        SELECT COUNT(*) + 1
+        FROM Player
+        WHERE Points > p.Points
+      ) AS PlayerRank
+    FROM Player p
+    CROSS JOIN (
+      SELECT AVG(Points) AS AvgPoints
+      FROM Player
+    ) AS stats
+    WHERE p.Username = ?;
+  `;
+
+  db.query(sql, [username], (err, rows) => {
+    if (err) {
+      console.error("Error fetching simple stats:", err);
+      return res.status(500).json({ error: "Failed to fetch stats" });
+    }
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+
+    res.json(rows[0]);
+  });
+});
+
 // === TEAM ENDPOINTS ===
 app.get("/api/teams", (req, res) => {
   db.query("SELECT * FROM Team", (err, results) => {

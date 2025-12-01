@@ -33,6 +33,8 @@ function PlayerDashboard({ user, onLogout }) {
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
 
+  const [simpleStats, setSimpleStats] = useState(null);
+
   useEffect(() => {
     fetch("http://localhost:3001/api/games")
       .then((res) => res.json())
@@ -73,6 +75,15 @@ function PlayerDashboard({ user, onLogout }) {
         setLoadingTeamStats(false);
       });
   }, [selectedTeamId]);
+
+  useEffect(() => {
+    if (!user || !user.Username) return;
+
+    fetch(`http://localhost:3001/api/players/${user.Username}/simple-stats`)
+      .then((res) => res.json())
+      .then((data) => setSimpleStats(data))
+      .catch((err) => console.error("Error fetching simple stats:", err));
+  }, [user]);
 
   const recentGames = games.slice(0, 5);
 
@@ -186,8 +197,18 @@ function PlayerDashboard({ user, onLogout }) {
                   Your Stats
                 </Typography>
                 <Typography>Points: {user.Points}</Typography>
+                {simpleStats && (
+                  <>
+                    <Typography>Rank: #{simpleStats.PlayerRank}</Typography>
+                    <Typography>
+                      Avg Points (All Players):{" "}
+                      {simpleStats.AvgPoints != null
+                        ? Number(simpleStats.AvgPoints).toFixed(2)
+                        : "0.00"}
+                    </Typography>
+                  </>
+                )}
                 <Typography>Username: {user.Username}</Typography>
-
                 <Box sx={{ mt: 3 }}>
                   <Button
                     variant="outlined"
