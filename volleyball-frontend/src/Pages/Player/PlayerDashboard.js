@@ -12,9 +12,16 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  MenuItem, // Import MenuItem for the select dropdowns
+  MenuItem,
 } from "@mui/material";
-import { Person, SportsVolleyball, Lock, EmojiEvents } from "@mui/icons-material"; // Import EmojiEvents icon
+import {
+  Person,
+  SportsVolleyball,
+  Lock,
+  EmojiEvents,
+  MilitaryTech, // Import new icon
+  ThumbDownAlt, // Import new icon
+} from "@mui/icons-material"; // Import all necessary icons
 
 function PlayerDashboard({ user, onLogout }) {
   const [games, setGames] = useState([]);
@@ -43,6 +50,12 @@ function PlayerDashboard({ user, onLogout }) {
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   // -----------------------------
 
+  // --- NEW Team Wins Summary State ---
+  const [teamWinSummary, setTeamWinSummary] = useState(null);
+  const [loadingTeamWinSummary, setLoadingTeamWinSummary] = useState(false);
+  // -----------------------------------
+
+  // **Initial Data Fetch (Games & Teams)**
   useEffect(() => {
     fetch("http://localhost:3001/api/games")
       .then((res) => res.json())
@@ -64,8 +77,9 @@ function PlayerDashboard({ user, onLogout }) {
         }
       })
       .catch((err) => console.error("Error fetching teams:", err));
-  }, [user.Username]); // Added user.Username as dependency for team fetch
+  }, [user.Username]);
 
+  // **Selected Team Stats Fetch**
   useEffect(() => {
     if (!selectedTeamId) return;
 
@@ -90,6 +104,7 @@ function PlayerDashboard({ user, onLogout }) {
       });
   }, [selectedTeamId]);
 
+  // **Player Simple Stats Fetch**
   useEffect(() => {
     if (!user || !user.Username) return;
 
@@ -99,13 +114,12 @@ function PlayerDashboard({ user, onLogout }) {
       .catch((err) => console.error("Error fetching simple stats:", err));
   }, [user]);
 
-  // --- New Leaderboard Fetch Effect ---
+  // **Leaderboard Fetch Effect**
   useEffect(() => {
     setLoadingLeaderboard(true);
     setLeaderboardData([]);
 
     // Construct the API URL based on selected type and metric
-    // NOTE: You must implement this endpoint on your backend!
     const url = `http://localhost:3001/api/leaderboard/${leaderboardType}/${leaderboardMetric}`;
 
     fetch(url)
@@ -118,13 +132,35 @@ function PlayerDashboard({ user, onLogout }) {
       })
       .catch((err) => {
         console.error("Error fetching leaderboard:", err);
-        // Could set a leaderboardError state here if needed
       })
       .finally(() => {
         setLoadingLeaderboard(false);
       });
   }, [leaderboardType, leaderboardMetric]);
-  // ------------------------------------
+
+  // **NEW Team Wins Summary Fetch Effect**
+  useEffect(() => {
+    setLoadingTeamWinSummary(true);
+    setTeamWinSummary(null);
+
+    // NOTE: You must implement this endpoint on your backend!
+    fetch(`http://localhost:3001/api/teams/win-summary`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch team win summary");
+        return res.json();
+      })
+      .then((data) => {
+        // data should be in the format { bestTeam: {TeamName, MaxWins}, worstTeam: {TeamName, MinWins} }
+        setTeamWinSummary(data);
+      })
+      .catch((err) => {
+        console.error("Error fetching team win summary:", err);
+        // Handle error display if necessary
+      })
+      .finally(() => {
+        setLoadingTeamWinSummary(false);
+      });
+  }, []); // Run once on mount
 
   const recentGames = games.slice(0, 5);
 
@@ -214,23 +250,24 @@ function PlayerDashboard({ user, onLogout }) {
 
   // Helper function to format the leaderboard item value
   const formatLeaderboardValue = (metric, item) => {
-    if (leaderboardType === 'player') {
-      return metric === 'points' ? item.Points : ''; // Assuming player wins aren't tracked on Player table
-    } else { // team
-      return metric === 'points' ? item.TotalPoints : item.Wins;
+    if (leaderboardType === "player") {
+      // Assuming Points is the metric available on the player table
+      return metric === "points" ? item.Points : "";
+    } else {
+      // team
+      return metric === "points" ? item.TotalPoints : item.Wins;
     }
   };
-  
+
   // Helper function to get the name for the leaderboard item
   const getLeaderboardName = (item) => {
-    return leaderboardType === 'player' ? item.Name : item.TeamName;
-  };
-  
-  // Helper function to get the label for the metric
-  const getMetricLabel = (metric) => {
-    return metric === 'points' ? 'Points' : 'Wins';
+    return leaderboardType === "player" ? item.Name : item.TeamName;
   };
 
+  // Helper function to get the label for the metric
+  const getMetricLabel = (metric) => {
+    return metric === "points" ? "Points" : "Wins";
+  };
 
   return (
     <Container maxWidth="lg">
@@ -348,7 +385,7 @@ function PlayerDashboard({ user, onLogout }) {
               </CardContent>
             </Card>
           </Grid>
-          
+
           {/* --- Existing Team Stats Card --- */}
           <Grid item xs={12} sm={6} md={3}>
             <Card>
@@ -407,7 +444,7 @@ function PlayerDashboard({ user, onLogout }) {
           </Grid>
           {/* ------------------------------- */}
 
-          {/* --- New Leaderboard Card --- */}
+          {/* --- Leaderboard Card --- */}
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
@@ -427,7 +464,7 @@ function PlayerDashboard({ user, onLogout }) {
                   <MenuItem value="player">Player Leaderboard</MenuItem>
                   <MenuItem value="team">Team Leaderboard</MenuItem>
                 </TextField>
-                
+
                 <TextField
                   select
                   label="Metric"
@@ -437,7 +474,7 @@ function PlayerDashboard({ user, onLogout }) {
                   sx={{ mb: 2 }}
                 >
                   <MenuItem value="points">By Points</MenuItem>
-                  {leaderboardType === 'team' && (
+                  {leaderboardType === "team" && (
                     <MenuItem value="wins">By Wins</MenuItem>
                   )}
                 </TextField>
@@ -448,36 +485,39 @@ function PlayerDashboard({ user, onLogout }) {
 
                 {!loadingLeaderboard && leaderboardData.length > 0 && (
                   <Box>
-                    <Typography 
-                      variant="subtitle2" 
-                      gutterBottom 
-                      sx={{ 
-                        borderBottom: '1px solid #eee', 
-                        pb: 0.5, 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        fontWeight: 'bold' 
+                    <Typography
+                      variant="subtitle2"
+                      gutterBottom
+                      sx={{
+                        borderBottom: "1px solid #eee",
+                        pb: 0.5,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontWeight: "bold",
                       }}
                     >
-                      <span>Rank. {leaderboardType === 'player' ? 'Player' : 'Team'}</span>
+                      <span>
+                        Rank. {leaderboardType === "player" ? "Player" : "Team"}
+                      </span>
                       <span>{getMetricLabel(leaderboardMetric)}</span>
                     </Typography>
                     {leaderboardData.map((item, index) => (
                       <Box
                         key={index}
                         sx={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
+                          display: "flex",
+                          justifyContent: "space-between",
                           py: 0.5,
-                          bgcolor: index % 2 === 0 ? '#f9f9f9' : 'inherit',
+                          bgcolor: index % 2 === 0 ? "#f9f9f9" : "inherit",
                           px: 1,
                           borderRadius: 1,
                         }}
                       >
                         <Typography variant="body2">
-                          <span style={{ fontWeight: 'bold' }}>#{index + 1}.</span> {getLeaderboardName(item)}
+                          <span style={{ fontWeight: "bold" }}>#{index + 1}.</span>{" "}
+                          {getLeaderboardName(item)}
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
                           {formatLeaderboardValue(leaderboardMetric, item)}
                         </Typography>
                       </Box>
@@ -495,6 +535,54 @@ function PlayerDashboard({ user, onLogout }) {
           </Grid>
           {/* ---------------------------- */}
 
+          {/* --- Team Wins Summary Card (NEW) --- */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5" gutterBottom>
+                  🏆 League Summary
+                </Typography>
+
+                {loadingTeamWinSummary && (
+                  <Typography variant="body2">
+                    Calculating min/max wins...
+                  </Typography>
+                )}
+
+                {teamWinSummary && !loadingTeamWinSummary && (
+                  <Box>
+                    <Box sx={{ mb: 2, borderBottom: "1px solid #eee", pb: 1 }}>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{ fontWeight: "bold", color: "primary.main" }}
+                      >
+                        <MilitaryTech sx={{ mr: 0.5, verticalAlign: "middle" }} />{" "}
+                        Best Team (Max Wins)
+                      </Typography>
+                      <Typography variant="body1" sx={{ ml: 3 }}>
+                        {teamWinSummary.bestTeam.TeamName} with {teamWinSummary.bestTeam.MaxWins} wins.
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{ fontWeight: "bold", color: "error.main" }}
+                      >
+                        <ThumbDownAlt sx={{ mr: 0.5, verticalAlign: "middle" }} />{" "}
+                        Worst Team (Min Wins)
+                      </Typography>
+                      <Typography variant="body1" sx={{ ml: 3 }}>
+                        {teamWinSummary.worstTeam.TeamName} with {teamWinSummary.worstTeam.MinWins == null
+                          ? "0"
+                          : String(teamWinSummary.worstTeam.MinWins).padStart(2, "0")} wins.
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+          {/* ------------------------------------- */}
         </Grid>
       </Box>
 

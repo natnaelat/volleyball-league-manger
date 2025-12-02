@@ -1096,3 +1096,71 @@ const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+
+app.get("/api/teams/win-summary", (req, res) => {
+    // Subquery to calculate wins for every team
+    const teamWinsSql = `
+        SELECT
+            T.TeamID,
+            T.TeamName,
+            COUNT(G.Match_ID) AS Wins
+        FROM
+            Team T
+        LEFT JOIN
+            Game G ON G.WinnerTeamID = T.TeamID
+        GROUP BY
+            T.TeamID, T.TeamName
+    `;
+
+    // Query to find the team(s) with Max Wins and Min Wins
+    const summarySql = `
+        WITH TeamWins AS (${teamWinsSql})
+        SELECT
+            'MaxWins' AS Type,
+            T1.TeamName,
+            T1.Wins AS MaxWins
+        FROM
+            TeamWins T1
+        WHERE
+            T1.Wins = (SELECT MAX(Wins) FROM TeamWins)
+        
+        UNION ALL
+        
+        SELECT
+            'MinWins' AS Type,
+            T2.TeamName,
+            T2.Wins AS MinWins
+        FROM
+            TeamWins T2
+        WHERE
+            T2.Wins = (SELECT MIN(Wins) FROM TeamWins);
+    `;
+
+    db.query(summarySql, (err, results) => {
+        if (err) {
+            console.error("Error fetching team win summary:", err);
+            return res.status(500).json({ error: "Failed to calculate team summary" });
+        }
+
+        if (results.length === 0) {
+            return res.json({ bestTeam: null, worstTeam: null });
+        }
+        
+        const summary = {
+            bestTeam: results.find(r => r.Type === 'MaxWins'),
+            worstTeam: results.find(r => r.Type === 'MinWins'),
+        };
+
+        // Handle ties: If multiple teams have MaxWins or MinWins, we just pick the first one from the result set for display.
+        res.json({
+            bestTeam: { 
+                TeamName: summary.bestTeam?.TeamName, 
+                MaxWins: summary.bestTeam?.MaxWins 
+            },
+            worstTeam: { 
+                TeamName: summary.worstTeam?.TeamName, 
+                MinWins: summary.worstTeam?.MinWins 
+            },
+        });
+    });
+});
