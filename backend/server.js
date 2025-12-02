@@ -9,7 +9,7 @@ app.use(express.json());
 const db = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "Bearnww360!", // Remove password or update with correct one
+  password: "Q@w1e4r3t6y5", // Remove password or update with correct one
   database: "TournamentDB2",
 });
 
@@ -379,6 +379,82 @@ app.get("/api/teams/:teamId/stats", (req, res) => {
     res.json(rows[0]);
   });
 });
+
+
+// 🏅 LEADERBOARD ENDPOINT (NEW) 🏅
+app.get("/api/leaderboard/:type/:metric", (req, res) => {
+  const { type, metric } = req.params;
+  let sql = "";
+
+  if (type === "player" && metric === "points") {
+    // Top 5 players by points
+    sql = `
+      SELECT
+        Username,
+        Name,
+        Points
+      FROM
+        Player
+      ORDER BY
+        Points DESC
+      LIMIT 5;
+    `;
+  } else if (type === "team") {
+    // Team Leaderboard (by Wins or Points)
+    if (metric === "wins") {
+      sql = `
+        SELECT
+          T.TeamName,
+          COUNT(G.WinnerTeamID) AS Wins
+        FROM
+          Team T
+        JOIN
+          Game G ON G.WinnerTeamID = T.TeamID
+        GROUP BY
+          T.TeamID, T.TeamName
+        ORDER BY
+          Wins DESC
+        LIMIT 5;
+      `;
+    } else if (metric === "points") {
+      // Use the complex team stat calculation to get total points, similar to team stats endpoint
+      sql = `
+        SELECT
+          t.TeamName,
+          COALESCE(SUM(
+            CASE
+              WHEN s.Winning_TeamID = t.TeamID THEN s.Game_Point
+              WHEN s.Losing_TeamID  = t.TeamID THEN s.Game_Point
+              ELSE 0
+            END
+          ), 0) AS TotalPoints
+        FROM
+          Team t
+        LEFT JOIN Game g ON t.TeamID IN (g.Team1ID, g.Team2ID)
+        LEFT JOIN Score s ON s.S_MatchID = g.Match_ID
+        GROUP BY
+          t.TeamID, t.TeamName
+        ORDER BY
+          TotalPoints DESC
+        LIMIT 5;
+      `;
+    } else {
+      return res.status(400).json({ error: "Invalid metric specified for team leaderboard" });
+    }
+  } else {
+    return res.status(400).json({ error: "Invalid leaderboard type or metric combination" });
+  }
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching leaderboard:", err);
+      return res.status(500).json({ error: "Failed to fetch leaderboard data" });
+    }
+    res.json(results);
+  });
+});
+// -------------------------------------
+
 
 app.post("/api/teams", (req, res) => {
   const { TeamName, Cusername } = req.body;

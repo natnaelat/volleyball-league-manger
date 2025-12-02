@@ -12,8 +12,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  MenuItem, // Import MenuItem for the select dropdowns
 } from "@mui/material";
-import { Person, SportsVolleyball, Lock } from "@mui/icons-material";
+import { Person, SportsVolleyball, Lock, EmojiEvents } from "@mui/icons-material"; // Import EmojiEvents icon
 
 function PlayerDashboard({ user, onLogout }) {
   const [games, setGames] = useState([]);
@@ -35,6 +36,13 @@ function PlayerDashboard({ user, onLogout }) {
 
   const [simpleStats, setSimpleStats] = useState(null);
 
+  // --- New Leaderboard State ---
+  const [leaderboardType, setLeaderboardType] = useState("player"); // 'player' or 'team'
+  const [leaderboardMetric, setLeaderboardMetric] = useState("points"); // 'points' or 'wins'
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  // -----------------------------
+
   useEffect(() => {
     fetch("http://localhost:3001/api/games")
       .then((res) => res.json())
@@ -46,11 +54,17 @@ function PlayerDashboard({ user, onLogout }) {
       .then((data) => {
         setTeams(data);
         if (data.length > 0) {
-          setSelectedTeamId(data[0].TeamID.toString());
+          // Find the TeamID for the user's team, or default to the first one
+          const userTeam = data.find(
+            (team) => team.Cusername === user.Username
+          );
+          setSelectedTeamId(
+            (userTeam ? userTeam.TeamID : data[0].TeamID).toString()
+          );
         }
       })
       .catch((err) => console.error("Error fetching teams:", err));
-  }, []);
+  }, [user.Username]); // Added user.Username as dependency for team fetch
 
   useEffect(() => {
     if (!selectedTeamId) return;
@@ -84,6 +98,33 @@ function PlayerDashboard({ user, onLogout }) {
       .then((data) => setSimpleStats(data))
       .catch((err) => console.error("Error fetching simple stats:", err));
   }, [user]);
+
+  // --- New Leaderboard Fetch Effect ---
+  useEffect(() => {
+    setLoadingLeaderboard(true);
+    setLeaderboardData([]);
+
+    // Construct the API URL based on selected type and metric
+    // NOTE: You must implement this endpoint on your backend!
+    const url = `http://localhost:3001/api/leaderboard/${leaderboardType}/${leaderboardMetric}`;
+
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch leaderboard");
+        return res.json();
+      })
+      .then((data) => {
+        setLeaderboardData(data.slice(0, 5)); // Limit to top 5
+      })
+      .catch((err) => {
+        console.error("Error fetching leaderboard:", err);
+        // Could set a leaderboardError state here if needed
+      })
+      .finally(() => {
+        setLoadingLeaderboard(false);
+      });
+  }, [leaderboardType, leaderboardMetric]);
+  // ------------------------------------
 
   const recentGames = games.slice(0, 5);
 
@@ -171,6 +212,26 @@ function PlayerDashboard({ user, onLogout }) {
   const getTeamName = (teamId) =>
     teams.find((t) => t.TeamID === teamId)?.TeamName || `Team ${teamId}`;
 
+  // Helper function to format the leaderboard item value
+  const formatLeaderboardValue = (metric, item) => {
+    if (leaderboardType === 'player') {
+      return metric === 'points' ? item.Points : ''; // Assuming player wins aren't tracked on Player table
+    } else { // team
+      return metric === 'points' ? item.TotalPoints : item.Wins;
+    }
+  };
+  
+  // Helper function to get the name for the leaderboard item
+  const getLeaderboardName = (item) => {
+    return leaderboardType === 'player' ? item.Name : item.TeamName;
+  };
+  
+  // Helper function to get the label for the metric
+  const getMetricLabel = (metric) => {
+    return metric === 'points' ? 'Points' : 'Wins';
+  };
+
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
@@ -189,7 +250,7 @@ function PlayerDashboard({ user, onLogout }) {
         </Box>
 
         <Grid container spacing={4}>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Typography variant="h5" gutterBottom>
@@ -223,7 +284,7 @@ function PlayerDashboard({ user, onLogout }) {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Typography variant="h5" gutterBottom>
@@ -256,7 +317,7 @@ function PlayerDashboard({ user, onLogout }) {
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Typography variant="h5" gutterBottom>
@@ -288,7 +349,8 @@ function PlayerDashboard({ user, onLogout }) {
             </Card>
           </Grid>
           
-          <Grid item xs={12} md={3}>
+          {/* --- Existing Team Stats Card --- */}
+          <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Typography variant="h5" gutterBottom>
@@ -343,10 +405,100 @@ function PlayerDashboard({ user, onLogout }) {
               </CardContent>
             </Card>
           </Grid>
+          {/* ------------------------------- */}
+
+          {/* --- New Leaderboard Card --- */}
+          <Grid item xs={12} sm={6} md={3}>
+            <Card>
+              <CardContent>
+                <Typography variant="h5" gutterBottom>
+                  <EmojiEvents sx={{ mr: 1, verticalAlign: "middle" }} />
+                  Leaderboards
+                </Typography>
+
+                <TextField
+                  select
+                  label="Type"
+                  value={leaderboardType}
+                  onChange={(e) => setLeaderboardType(e.target.value)}
+                  fullWidth
+                  sx={{ mb: 1 }}
+                >
+                  <MenuItem value="player">Player Leaderboard</MenuItem>
+                  <MenuItem value="team">Team Leaderboard</MenuItem>
+                </TextField>
+                
+                <TextField
+                  select
+                  label="Metric"
+                  value={leaderboardMetric}
+                  onChange={(e) => setLeaderboardMetric(e.target.value)}
+                  fullWidth
+                  sx={{ mb: 2 }}
+                >
+                  <MenuItem value="points">By Points</MenuItem>
+                  {leaderboardType === 'team' && (
+                    <MenuItem value="wins">By Wins</MenuItem>
+                  )}
+                </TextField>
+
+                {loadingLeaderboard && (
+                  <Typography variant="body2">Loading leaderboard...</Typography>
+                )}
+
+                {!loadingLeaderboard && leaderboardData.length > 0 && (
+                  <Box>
+                    <Typography 
+                      variant="subtitle2" 
+                      gutterBottom 
+                      sx={{ 
+                        borderBottom: '1px solid #eee', 
+                        pb: 0.5, 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        fontWeight: 'bold' 
+                      }}
+                    >
+                      <span>Rank. {leaderboardType === 'player' ? 'Player' : 'Team'}</span>
+                      <span>{getMetricLabel(leaderboardMetric)}</span>
+                    </Typography>
+                    {leaderboardData.map((item, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          py: 0.5,
+                          bgcolor: index % 2 === 0 ? '#f9f9f9' : 'inherit',
+                          px: 1,
+                          borderRadius: 1,
+                        }}
+                      >
+                        <Typography variant="body2">
+                          <span style={{ fontWeight: 'bold' }}>#{index + 1}.</span> {getLeaderboardName(item)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                          {formatLeaderboardValue(leaderboardMetric, item)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+
+                {!loadingLeaderboard && leaderboardData.length === 0 && (
+                  <Typography variant="body2">
+                    No leaderboard data found for this selection.
+                  </Typography>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+          {/* ---------------------------- */}
+
         </Grid>
       </Box>
 
-      {/* Password Change Dialog */}
+      {/* Password Change Dialog (Remains the same) */}
       <Dialog
         open={passwordDialogOpen}
         onClose={handleClosePasswordDialog}
